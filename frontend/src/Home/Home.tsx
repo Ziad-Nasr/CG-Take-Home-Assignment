@@ -171,7 +171,7 @@ export default function Home() {
           : node
       )
     );
-    setNeedsRecalculation((prev) => !prev);
+    setNeedsRecalculation(true);
   };
 
   const onNodesChange = useCallback((changes: any) => {
@@ -186,10 +186,35 @@ export default function Home() {
     setPendingEdge(connection);
   }, []);
 
+  const hasCycle = (source: any, target: any) => {
+    const graph = new Map();
+
+    nodes.forEach((node) => graph.set(node.id, []));
+    edges.forEach((edge) => graph.get(edge.source).push(edge.target));
+
+    const visited = new Set();
+    const dfs = (node: any) => {
+      if (node === source) return true;
+      if (visited.has(node)) return false;
+      visited.add(node);
+      return (graph.get(node) || []).some(dfs);
+    };
+
+    return dfs(target);
+  };
+
   const confirmEdge = () => {
     if (!pendingEdge || edgeWeight === 0) return;
     console.log("pendingEdge", pendingEdge);
 
+    if (pendingEdge.source === pendingEdge.target) {
+      console.warn("Self-loops are not allowed.");
+      return;
+    }
+    if (hasCycle(pendingEdge.source, pendingEdge.target)) {
+      console.warn("Cannot add edge: This would create a cycle!");
+      return;
+    }
     const sourceIndex = nodes.findIndex((n) => n.id === pendingEdge.source);
     if (sourceIndex === -1) return;
 
@@ -243,6 +268,7 @@ export default function Home() {
           : node
       )
     );
+    console.log("a5er el Confirm Edge");
     setNeedsRecalculation(true);
   };
 
