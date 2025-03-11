@@ -22,37 +22,97 @@ export default function Home() {
   } | null>(null);
   const [pendingEdge, setPendingEdge] = useState<any | null>(null);
   const [edgeWeight, setEdgeWeight] = useState<number>(0);
-  
-  const recalculateEmissions = useCallback(() => {
-    setEdges((eds) =>
-      eds.map((edge) => {
-        const sourceNode = nodes.find((n) => n.id === edge.source);
-        const targetNode = nodes.find((n) => n.id === edge.target);
-        if (!sourceNode || !targetNode) return edge;
+  const [needsRecalculation, setNeedsRecalculation] = useState(false);
+
+  const recalculateEmissions = () => {
+    const nodeMap = new Map(
+      nodes.map((node) => [
+        node.id,
+        {
+          ...node,
+          data: {
+            ...node.data,
+            emissions: node.data.ownEmissions,
+            totalEmissions: 0,
+          },
+        },
+      ])
+    );
+    const edgeMap = new Map(
+      edges.map((edge) => [
+        edge.id,
+        { ...edge, data: { ...edge.data, emissions: 0 } },
+      ])
+    );
+    console.log("edgeMap", edgeMap);
+
+    const initialNodes = nodes.filter(
+      (node) => !edges.some((edge) => edge.target === node.id)
+    );
+
+    const queue = [...initialNodes.map((node) => node.id)];
+    console.log(queue);
+    while (queue.length > 0) {
+      const currentNodeId = queue.shift();
+      const currentNode = nodeMap.get(currentNodeId || "");
+      if (!currentNode || !currentNode.data.outgoingEdges) continue;
+      console.log("currentNode", currentNode);
+
+      currentNode.data.outgoingEdges.forEach(({ target, weight, edgeId }) => {
+        const targetNode = nodeMap.get(target);
+        console.log(edgeId);
+        const edge = edgeMap.get(edgeId);
+        console.log("edgeeee", edge);
+
+        if (!targetNode || !edge) return;
 
         const edgeEmissions =
-          (sourceNode.data.weight / edge.data.weight) * sourceNode.data.ownEmissions;
+          (currentNode.data.weight / weight) * currentNode.data.ownEmissions;
 
-        return {
+        edgeMap.set(edgeId, {
           ...edge,
           data: { ...edge.data, emissions: edgeEmissions },
-          label: `Weight: ${edge.data.weight} \n\n Emissions: ${edgeEmissions}`,
-        };
-      })
-    );
+          label: `Weight: ${weight} \n Emissions: ${edgeEmissions}`,
+        });
 
-    setNodes((nds) =>
-      nds.map((node) => {
-        const incomingEdges = edges.filter((e) => e.target === node.id);
-        const newEmissions = incomingEdges.reduce(
-          (sum, edge) => sum + (edge.data?.emissions || 0),
-          node.data.ownEmissions
+        console.log(
+          "targetNode.data.totalEmissions",
+          targetNode.data.totalEmissions
         );
+        if (targetNode.data.totalEmissions) {
+          targetNode.data.totalEmissions += edgeEmissions;
+        } else {
+          targetNode.data.totalEmissions =
+            targetNode.data.ownEmissions + edgeEmissions;
+        }
 
-        return { ...node, data: { ...node.data, emissions: newEmissions } };
-      })
+        if (!queue.includes(targetNode.id)) {
+          queue.push(targetNode.id);
+        }
+      });
+    }
+
+    const newEdges = Array.from(edgeMap.values());
+    const newNodes = Array.from(nodeMap.values());
+
+    setEdges((prevEdges) =>
+      JSON.stringify(prevEdges) !== JSON.stringify(newEdges)
+        ? newEdges
+        : prevEdges
     );
-  }, [nodes, edges]);
+    setNodes((prevNodes) =>
+      JSON.stringify(prevNodes) !== JSON.stringify(newNodes)
+        ? newNodes
+        : prevNodes
+    );
+  };
+
+  useEffect(() => {
+    if (needsRecalculation) {
+      recalculateEmissions();
+      setNeedsRecalculation(false);
+    }
+  }, [needsRecalculation]);
 
   const addNode = () => {
     const newNode = {
@@ -82,7 +142,7 @@ export default function Home() {
       )
     );
     setSelectedNodeIds([]);
-    recalculateEmissions();
+    setNeedsRecalculation(true);
   };
 
   const updateNodeData = (field: string, value: string | number) => {
@@ -93,7 +153,7 @@ export default function Home() {
           : node
       )
     );
-    recalculateEmissions();
+    setNeedsRecalculation((prev) => !prev);
   };
 
   const onNodesChange = useCallback((changes: any) => {
@@ -131,7 +191,29 @@ export default function Home() {
     };
     console.log("newEdge", newEdge);
 
-    recalculateEmissions();
+    setEdges((prev) => [...prev, newEdge]);
+
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === pendingEdge.source
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                outgoingEdges: [
+                  ...(node.data.outgoingEdges || []),
+                  {
+                    target: pendingEdge.target,
+                    weight: edgeWeight,
+                    edgeId: `${pendingEdge.source}-${pendingEdge.target}`,
+                  },
+                ],
+              },
+            }
+          : node
+      )
+    );
+    setNeedsRecalculation(true);
   };
 
   const deleteEdge = useCallback(() => {
@@ -150,7 +232,23 @@ export default function Home() {
 
     setEdges((eds) => eds.filter((e) => e.id !== edgeIdToDelete));
 
-    recalculateEmissions();
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === sourceNodeId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                outgoingEdges: (node.data.outgoingEdges || []).filter(
+                  (outEdge) => outEdge.edgeId !== edgeIdToDelete
+                ),
+              },
+            }
+          : node
+      )
+    );
+
+    setNeedsRecalculation(true);
     setselectedEdgeIds([]);
   }, [selectedEdgeIds]);
 
