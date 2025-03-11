@@ -20,6 +20,8 @@ export default function Home() {
     x: number;
     y: number;
   } | null>(null);
+  const [pendingEdge, setPendingEdge] = useState<any | null>(null);
+  const [edgeWeight, setEdgeWeight] = useState<number>(0);
 
   const addNode = () => {
     const newNode = {
@@ -30,6 +32,7 @@ export default function Home() {
         weight: 1,
         ownEmissions: 1,
         totalEmissions: 1,
+        outgoingEdges: [],
       },
       type: "default",
     };
@@ -69,8 +72,32 @@ export default function Home() {
   }, []);
 
   const onConnect = useCallback((connection: any) => {
-    console.log(connection);
+    setPendingEdge(connection);
   }, []);
+
+  const confirmEdge = () => {
+    if (!pendingEdge || edgeWeight === 0) return;
+    console.log("pendingEdge", pendingEdge);
+
+    const sourceIndex = nodes.findIndex((n) => n.id === pendingEdge.source);
+    if (sourceIndex === -1) return;
+
+    const sourceNode = nodes[sourceIndex];
+
+    const edgeEmissions =
+      (sourceNode.data.weight / edgeWeight) * sourceNode.data.ownEmissions;
+
+    const newEdge = {
+      source: pendingEdge.source,
+      target: pendingEdge.target,
+      id: `${pendingEdge.source}-${pendingEdge.target}`,
+      data: { weight: Number(edgeWeight), emissions: edgeEmissions },
+      label: `Weight: ${edgeWeight} \n\n Emissions: ${edgeEmissions}`,
+    };
+    console.log("newEdge", newEdge);
+
+    setEdges((prev) => [...prev, newEdge]);
+  };
 
   const deleteEdge = useCallback(() => {
     if (selectedEdgeIds.length === 0) return;
@@ -219,6 +246,38 @@ export default function Home() {
           </button>
         </div>
       )}
+
+      {pendingEdge && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "white",
+            padding: "15px",
+            borderRadius: "8px",
+            boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
+            zIndex: 2000,
+          }}
+        >
+          <h4>Set Edge Weight</h4>
+          <label>Weight: </label>
+          <input
+            type="number"
+            value={edgeWeight}
+            onChange={(e) => setEdgeWeight(Number(e.target.value))}
+          />
+          <br />
+          <button onClick={confirmEdge} style={{ marginRight: 5 }}>
+            Confirm
+          </button>
+          <button onClick={() => setPendingEdge(null)}>Cancel</button>
+        </div>
+      )}
     </div>
   );
 }
+
+//! Deleting a node DOES NOT delete it's edges internally
+//TODO: Better UI bellah
