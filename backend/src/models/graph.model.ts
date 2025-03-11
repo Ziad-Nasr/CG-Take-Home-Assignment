@@ -5,11 +5,18 @@ interface EdgeData {
   emissions: number;
 }
 
+interface NodeEdge {
+  target: string;
+  weight: number;
+  edgeId: string;
+}
+
 interface NodeData {
   label: string;
   weight: number;
   ownEmissions: number;
   totalEmissions: number;
+  outgoingEdges: NodeEdge[];
 }
 
 interface Edge extends Document {
@@ -28,7 +35,7 @@ interface Node extends Document {
 }
 
 const EdgeSchema = new Schema<Edge>({
-  id: { type: String, required: true, unique: true },
+  id: { type: String, required: true },
   source: { type: String, required: true },
   target: { type: String, required: true },
   label: { type: String },
@@ -39,7 +46,7 @@ const EdgeSchema = new Schema<Edge>({
 });
 
 const NodeSchema = new Schema<Node>({
-  id: { type: String, required: true, unique: true },
+  id: { type: String, required: true },
   position: {
     x: { type: Number, required: true },
     y: { type: Number, required: true },
@@ -49,11 +56,36 @@ const NodeSchema = new Schema<Node>({
     weight: { type: Number, required: true },
     ownEmissions: { type: Number, required: true },
     totalEmissions: { type: Number, required: true },
+    outgoingEdges: [
+      {
+        target: { type: String, required: true },
+        weight: { type: Number, required: true },
+        edgeId: { type: String, required: true },
+      },
+    ],
   },
   type: { type: String, required: true },
 });
 
-const EdgeModel = mongoose.model<Edge>("Edge", EdgeSchema);
-const NodeModel = mongoose.model<Node>("Node", NodeSchema);
+export interface IGraphConfig extends Document {
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+  nodes: (typeof NodeSchema)[];
+  edges: (typeof EdgeSchema)[];
+}
 
-export { EdgeModel, NodeModel };
+const GraphConfigSchema = new Schema<IGraphConfig>(
+  {
+    name: { type: String, required: true, unique: true },
+    nodes: [NodeSchema],
+    edges: [EdgeSchema],
+  },
+  { timestamps: true }
+);
+
+export const GraphConfigModel = mongoose.model<IGraphConfig>(
+  "GraphConfig",
+  GraphConfigSchema
+);
+
