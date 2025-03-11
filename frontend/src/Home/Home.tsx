@@ -1,26 +1,28 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Background,
   Controls,
   ReactFlow,
-  addEdge,
   applyEdgeChanges,
   applyNodeChanges,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { nodesData } from "../data/nodesData";
 import { edgesData } from "../data/edgesData";
+import { recalculateEmissions } from "../helpers/Emissions";
+import { hasCycle } from "../helpers/Graph";
+import { myEdge, myNode } from "../types/graphTypes";
 
 export default function Home() {
-  const [nodes, setNodes] = useState(nodesData);
-  const [edges, setEdges] = useState<any[]>(edgesData);
+  const [nodes, setNodes] = useState<myNode[]>(nodesData);
+  const [edges, setEdges] = useState<myEdge[]>(edgesData);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setselectedEdgeIds] = useState<any[]>([]);
   const [panelPosition, setPanelPosition] = useState<{
     x: number;
     y: number;
   } | null>(null);
-  const [pendingEdge, setPendingEdge] = useState<any | null>(null);
+  const [pendingEdgeData, setPendingEdgeData] = useState<any | null>(null);
   const [edgeWeight, setEdgeWeight] = useState<number>(0);
   const [needsRecalculation, setNeedsRecalculation] = useState(false);
 
@@ -28,90 +30,10 @@ export default function Home() {
   //?Done
 
   //TODO: check why it doesn't loop on all edges
-  const recalculateEmissions = () => {
-    const nodeMap = new Map(
-      nodes.map((node) => [
-        node.id,
-        {
-          ...node,
-          data: {
-            ...node.data,
-            emissions: node.data.ownEmissions,
-            totalEmissions: 0,
-          },
-        },
-      ])
-    );
-    const edgeMap = new Map(
-      edges.map((edge) => [
-        edge.id,
-        { ...edge, data: { ...edge.data, emissions: 0 } },
-      ])
-    );
-    console.log("edgeMap", edgeMap);
-
-    const initialNodes = nodes.filter(
-      (node) => !edges.some((edge) => edge.target === node.id)
-    );
-
-    const queue = [...initialNodes.map((node) => node.id)];
-    console.log(queue);
-    while (queue.length > 0) {
-      const currentNodeId = queue.shift();
-      const currentNode = nodeMap.get(currentNodeId || "");
-      if (!currentNode || !currentNode.data.outgoingEdges) continue;
-      console.log("currentNode", currentNode);
-      currentNode.data.outgoingEdges.forEach(({ target, weight, edgeId }) => {
-        const targetNode = nodeMap.get(target);
-        console.log(edgeId);
-        const edge = edgeMap.get(edgeId);
-        console.log("edgeeee", edge);
-
-        if (!targetNode || !edge) return;
-
-        const edgeEmissions =
-          (currentNode.data.weight / weight) * currentNode.data.ownEmissions;
-
-        edgeMap.set(edgeId, {
-          ...edge,
-          data: { ...edge.data, emissions: edgeEmissions },
-          label: `Weight: ${weight} \n Emissions: ${edgeEmissions}`,
-        });
-
-        console.log(
-          "targetNode.data.totalEmissions",
-          targetNode.data.totalEmissions
-        );
-        if (targetNode.data.totalEmissions) {
-          targetNode.data.totalEmissions += edgeEmissions;
-        } else {
-          targetNode.data.totalEmissions =
-            targetNode.data.ownEmissions + edgeEmissions;
-        }
-        if (!queue.includes(targetNode.id)) {
-          queue.push(targetNode.id);
-        }
-      });
-    }
-
-    const newEdges = Array.from(edgeMap.values());
-    const newNodes = Array.from(nodeMap.values());
-
-    setEdges((prevEdges) =>
-      JSON.stringify(prevEdges) !== JSON.stringify(newEdges)
-        ? newEdges
-        : prevEdges
-    );
-    setNodes((prevNodes) =>
-      JSON.stringify(prevNodes) !== JSON.stringify(newNodes)
-        ? newNodes
-        : prevNodes
-    );
-  };
 
   useEffect(() => {
     if (needsRecalculation) {
-      recalculateEmissions();
+      recalculateEmissions(nodes, edges, setNodes, setEdges);
       setNeedsRecalculation(false);
     }
   }, [needsRecalculation]);
@@ -145,7 +67,7 @@ export default function Home() {
           ...n,
           data: {
             ...n.data,
-            outgoingEdges: n.data.outgoingEdges.filter(
+            outgoingEdges: n.data.outgoingEdges?.filter(
               (edge) => !deletedNodeSet.has(edge.target)
             ),
           },
@@ -183,39 +105,23 @@ export default function Home() {
   }, []);
 
   const onConnect = useCallback((connection: any) => {
-    setPendingEdge(connection);
+    setPendingEdgeData(connection);
+    console.log("connection", connection);
   }, []);
 
-  const hasCycle = (source: any, target: any) => {
-    const graph = new Map();
-
-    nodes.forEach((node) => graph.set(node.id, []));
-    edges.forEach((edge) => graph.get(edge.source).push(edge.target));
-
-    const visited = new Set();
-    const dfs = (node: any) => {
-      if (node === source) return true;
-      if (visited.has(node)) return false;
-      visited.add(node);
-      return (graph.get(node) || []).some(dfs);
-    };
-
-    return dfs(target);
-  };
-
   const confirmEdge = () => {
-    if (!pendingEdge || edgeWeight === 0) return;
-    console.log("pendingEdge", pendingEdge);
+    if (!pendingEdgeData || edgeWeight === 0) return;
+    console.log("pendingEdgeData", pendingEdgeData);
 
-    if (pendingEdge.source === pendingEdge.target) {
+    if (pendingEdgeData.source === pendingEdgeData.target) {
       console.warn("Self-loops are not allowed.");
       return;
     }
-    if (hasCycle(pendingEdge.source, pendingEdge.target)) {
+    if (hasCycle(pendingEdgeData.source, pendingEdgeData.target, nodes, edges)) {
       console.warn("Cannot add edge: This would create a cycle!");
       return;
     }
-    const sourceIndex = nodes.findIndex((n) => n.id === pendingEdge.source);
+    const sourceIndex = nodes.findIndex((n) => n.id === pendingEdgeData.source);
     if (sourceIndex === -1) return;
 
     const sourceNode = nodes[sourceIndex];
@@ -238,11 +144,12 @@ export default function Home() {
     console.log("Here");
 
     const newEdge = {
-      source: pendingEdge.source,
-      target: pendingEdge.target,
-      id: `${pendingEdge.source}-${pendingEdge.target}`,
+      source: pendingEdgeData.source,
+      target: pendingEdgeData.target,
+      id: `${pendingEdgeData.source}-${pendingEdgeData.target}`,
       data: { weight: Number(edgeWeight), emissions: edgeEmissions },
       label: `Weight: ${edgeWeight} \n\n Emissions: ${edgeEmissions}`,
+      animated: true,
     };
     console.log("newEdge", newEdge);
 
@@ -250,7 +157,7 @@ export default function Home() {
 
     setNodes((nds) =>
       nds.map((node) =>
-        node.id === pendingEdge.source
+        node.id === pendingEdgeData.source
           ? {
               ...node,
               data: {
@@ -258,9 +165,9 @@ export default function Home() {
                 outgoingEdges: [
                   ...(node.data.outgoingEdges || []),
                   {
-                    target: pendingEdge.target,
+                    target: pendingEdgeData.target,
                     weight: edgeWeight,
-                    edgeId: `${pendingEdge.source}-${pendingEdge.target}`,
+                    edgeId: `${pendingEdgeData.source}-${pendingEdgeData.target}`,
                   },
                 ],
               },
@@ -437,7 +344,7 @@ export default function Home() {
         </div>
       )}
 
-      {pendingEdge && (
+      {pendingEdgeData && (
         <div
           style={{
             position: "absolute",
@@ -462,12 +369,11 @@ export default function Home() {
           <button onClick={confirmEdge} style={{ marginRight: 5 }}>
             Confirm
           </button>
-          <button onClick={() => setPendingEdge(null)}>Cancel</button>
+          <button onClick={() => setPendingEdgeData(null)}>Cancel</button>
         </div>
       )}
     </div>
   );
 }
 
-//! Deleting a node DOES NOT delete it's edges internally
 //TODO: Better UI bellah
