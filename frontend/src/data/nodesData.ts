@@ -1,4 +1,5 @@
-export const nodesData = [
+import { myNode } from "../types/graphTypes";
+export const nodesData: myNode[] = [
   {
     id: "1",
     position: { x: 100, y: 100 },
