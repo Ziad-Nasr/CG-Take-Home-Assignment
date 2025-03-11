@@ -22,6 +22,37 @@ export default function Home() {
   } | null>(null);
   const [pendingEdge, setPendingEdge] = useState<any | null>(null);
   const [edgeWeight, setEdgeWeight] = useState<number>(0);
+  
+  const recalculateEmissions = useCallback(() => {
+    setEdges((eds) =>
+      eds.map((edge) => {
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+        if (!sourceNode || !targetNode) return edge;
+
+        const edgeEmissions =
+          (sourceNode.data.weight / edge.data.weight) * sourceNode.data.ownEmissions;
+
+        return {
+          ...edge,
+          data: { ...edge.data, emissions: edgeEmissions },
+          label: `Weight: ${edge.data.weight} \n\n Emissions: ${edgeEmissions}`,
+        };
+      })
+    );
+
+    setNodes((nds) =>
+      nds.map((node) => {
+        const incomingEdges = edges.filter((e) => e.target === node.id);
+        const newEmissions = incomingEdges.reduce(
+          (sum, edge) => sum + (edge.data?.emissions || 0),
+          node.data.ownEmissions
+        );
+
+        return { ...node, data: { ...node.data, emissions: newEmissions } };
+      })
+    );
+  }, [nodes, edges]);
 
   const addNode = () => {
     const newNode = {
@@ -51,6 +82,7 @@ export default function Home() {
       )
     );
     setSelectedNodeIds([]);
+    recalculateEmissions();
   };
 
   const updateNodeData = (field: string, value: string | number) => {
@@ -61,6 +93,7 @@ export default function Home() {
           : node
       )
     );
+    recalculateEmissions();
   };
 
   const onNodesChange = useCallback((changes: any) => {
@@ -87,6 +120,8 @@ export default function Home() {
     const edgeEmissions =
       (sourceNode.data.weight / edgeWeight) * sourceNode.data.ownEmissions;
 
+    console.log("Here");
+
     const newEdge = {
       source: pendingEdge.source,
       target: pendingEdge.target,
@@ -96,7 +131,7 @@ export default function Home() {
     };
     console.log("newEdge", newEdge);
 
-    setEdges((prev) => [...prev, newEdge]);
+    recalculateEmissions();
   };
 
   const deleteEdge = useCallback(() => {
@@ -115,6 +150,7 @@ export default function Home() {
 
     setEdges((eds) => eds.filter((e) => e.id !== edgeIdToDelete));
 
+    recalculateEmissions();
     setselectedEdgeIds([]);
   }, [selectedEdgeIds]);
 
