@@ -16,7 +16,11 @@ export default function Home() {
   const [edges, setEdges] = useState<any[]>(edgesData);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [selectedEdgeIds, setselectedEdgeIds] = useState<any[]>([]);
-  
+  const [panelPosition, setPanelPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
   const addNode = () => {
     const newNode = {
       id: `${nodes.length + 1}`,
@@ -24,8 +28,9 @@ export default function Home() {
       data: {
         label: `Node ${nodes.length + 1}`,
         weight: 1,
-        Emissions: 1,
-        },
+        ownEmissions: 1,
+        totalEmissions: 1,
+      },
       type: "default",
     };
     console.log(nodes.length);
@@ -43,7 +48,17 @@ export default function Home() {
       )
     );
     setSelectedNodeIds([]);
-  };;
+  };
+
+  const updateNodeData = (field: string, value: string | number) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        selectedNodeIds.includes(node.id)
+          ? { ...node, data: { ...node.data, [field]: value } }
+          : node
+      )
+    );
+  };
 
   const onNodesChange = useCallback((changes: any) => {
     setNodes((nds) => applyNodeChanges(changes, nds));
@@ -54,16 +69,25 @@ export default function Home() {
   }, []);
 
   const onConnect = useCallback((connection: any) => {
+    console.log(connection);
   }, []);
 
-  
-
   const deleteEdge = useCallback(() => {
-    console.log("selectedEdgeIds", selectedEdgeIds);
-    const targetNodeForTheDeletedEdge = selectedEdgeIds[0].target;
-    console.log("targetNodeForTheDeletedEdge", targetNodeForTheDeletedEdge);
     if (selectedEdgeIds.length === 0) return;
-    setEdges((eds) => eds.filter((e) => !selectedEdgeIds[0].id.includes(e.id)));
+
+    const edgeIdToDelete = selectedEdgeIds[0].id;
+
+    const edgeToDelete = edges.find((e) => {
+      console.log(e, edgeIdToDelete, "Yarrab");
+      return e.id === edgeIdToDelete;
+    });
+
+    if (!edgeToDelete) return;
+
+    const sourceNodeId = edgeToDelete.source;
+
+    setEdges((eds) => eds.filter((e) => e.id !== edgeIdToDelete));
+
     setselectedEdgeIds([]);
   }, [selectedEdgeIds]);
 
@@ -76,6 +100,10 @@ export default function Home() {
       );
     } else {
       setSelectedNodeIds([node.id]);
+      setPanelPosition({
+        x: Math.min(event.clientX, window.innerWidth - 200),
+        y: Math.min(event.clientY, window.innerHeight - 200),
+      });
     }
   }, []);
 
@@ -118,7 +146,79 @@ export default function Home() {
         <Background />
       </ReactFlow>
 
-      
+      {panelPosition && selectedNodeIds.length === 1 && (
+        <div
+          style={{
+            position: "absolute",
+            left: panelPosition.x,
+            top: panelPosition.y,
+            background: "white",
+            padding: "10px",
+            borderRadius: "5px",
+            boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
+            zIndex: 1000,
+          }}
+        >
+          <h4>Edit Node</h4>
+          <label>Name: </label>
+          <input
+            type="text"
+            placeholder="Enter node name"
+            value={
+              nodes.find((node) => node.id === selectedNodeIds[0])?.data
+                .label || ""
+            }
+            onChange={(e) => updateNodeData("label", e.target.value)}
+          />
+          <br />
+          <label>Weight: </label>
+          <input
+            type="number"
+            placeholder="Enter node weight"
+            value={
+              nodes.find((node) => node.id === selectedNodeIds[0])?.data
+                .weight || ""
+            }
+            onChange={(e) => updateNodeData("weight", Number(e.target.value))}
+          />
+          <br />
+          <label>Emissions: </label>
+          <input
+            type="number"
+            placeholder="Enter node emissions"
+            value={
+              nodes.find((node) => node.id === selectedNodeIds[0])?.data
+                .ownEmissions || ""
+            }
+            onChange={(e) =>
+              updateNodeData("ownEmissions", Number(e.target.value))
+            }
+          />
+          <br />
+          <label>Total Emissions: </label>
+          <input
+            disabled
+            type="number"
+            placeholder="..."
+            value={
+              nodes.find((node) => node.id === selectedNodeIds[0])?.data
+                .totalEmissions || ""
+            }
+            onChange={(e) =>
+              updateNodeData("ownEmissions", Number(e.target.value))
+            }
+          />
+          <br />
+          <button
+            onClick={() => {
+              setSelectedNodeIds([]);
+              setPanelPosition(null);
+            }}
+          >
+            Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }

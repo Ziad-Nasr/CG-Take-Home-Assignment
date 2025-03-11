@@ -5,7 +5,8 @@ export const nodesData = [
     data: {
       label: "Initial Node",
       weight: 5,
-      Emissions: 5,
+      ownEmissions: 5,
+      totalEmissions: 5,
       
     },
     type: "input",
@@ -16,8 +17,9 @@ export const nodesData = [
     data: {
       label: "Node 2",
       weight: 1,
-      Emissions: 5,
-      },
+      ownEmissions: 5,
+      totalEmissions: 5,
+    },
     type: "default",
   },
   {
@@ -26,8 +28,9 @@ export const nodesData = [
     data: {
       label: "Node 3",
       weight: 1,
-      Emissions: 5,
-      },
+      ownEmissions: 5,
+      totalEmissions: 5,
+    },
     type: "default",
   },
   {
@@ -36,8 +39,9 @@ export const nodesData = [
     data: {
       label: "Node 4",
       weight: 1,
-      Emissions: 5,
-      },
+      ownEmissions: 5,
+      totalEmissions: 5,
+    },
     type: "default",
   },
 ];
