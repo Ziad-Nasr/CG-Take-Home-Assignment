@@ -24,6 +24,10 @@ export default function Home() {
   const [edgeWeight, setEdgeWeight] = useState<number>(0);
   const [needsRecalculation, setNeedsRecalculation] = useState(false);
 
+  //TODO: edges in the below function is not updated to the shown edges numbers
+  //?Done
+
+  //TODO: check why it doesn't loop on all edges
   const recalculateEmissions = () => {
     const nodeMap = new Map(
       nodes.map((node) => [
@@ -57,7 +61,6 @@ export default function Home() {
       const currentNode = nodeMap.get(currentNodeId || "");
       if (!currentNode || !currentNode.data.outgoingEdges) continue;
       console.log("currentNode", currentNode);
-
       currentNode.data.outgoingEdges.forEach(({ target, weight, edgeId }) => {
         const targetNode = nodeMap.get(target);
         console.log(edgeId);
@@ -85,7 +88,6 @@ export default function Home() {
           targetNode.data.totalEmissions =
             targetNode.data.ownEmissions + edgeEmissions;
         }
-
         if (!queue.includes(targetNode.id)) {
           queue.push(targetNode.id);
         }
@@ -116,10 +118,10 @@ export default function Home() {
 
   const addNode = () => {
     const newNode = {
-      id: `${nodes.length + 1}`,
+      id: `${Date.now()}`,
       position: { x: Math.random() * 500, y: Math.random() * 500 },
       data: {
-        label: `Node ${nodes.length + 1}`,
+        label: `New Node`,
         weight: 1,
         ownEmissions: 1,
         totalEmissions: 1,
@@ -133,7 +135,23 @@ export default function Home() {
 
   const deleteNode = () => {
     if (selectedNodeIds.length === 0) return;
-    setNodes((nds) => nds.filter((n) => !selectedNodeIds.includes(n.id)));
+
+    setNodes((nds) => {
+      const deletedNodeSet = new Set(selectedNodeIds);
+
+      return nds
+        .filter((n) => !deletedNodeSet.has(n.id))
+        .map((n) => ({
+          ...n,
+          data: {
+            ...n.data,
+            outgoingEdges: n.data.outgoingEdges.filter(
+              (edge) => !deletedNodeSet.has(edge.target)
+            ),
+          },
+        }));
+    });
+
     setEdges((eds) =>
       eds.filter(
         (e) =>
@@ -176,6 +194,18 @@ export default function Home() {
     if (sourceIndex === -1) return;
 
     const sourceNode = nodes[sourceIndex];
+
+    const totalExistingWeight = (sourceNode.data.outgoingEdges || []).reduce(
+      (sum, edge) => sum + edge.weight,
+      0
+    );
+    console.log("totalExistingWeight", totalExistingWeight);
+    if (totalExistingWeight + edgeWeight > sourceNode.data.weight) {
+      console.log(
+        "Cannot add edge, Total outgoing weight exceeds node weight!"
+      );
+      return;
+    }
 
     const edgeEmissions =
       (sourceNode.data.weight / edgeWeight) * sourceNode.data.ownEmissions;
