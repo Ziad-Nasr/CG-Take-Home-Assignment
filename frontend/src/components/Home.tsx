@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Background,
+  Connection,
   Controls,
+  EdgeChange,
+  NodeChange,
   ReactFlow,
   applyEdgeChanges,
   applyNodeChanges,
@@ -12,6 +15,9 @@ import { edgesData } from "../data/edgesData";
 import { recalculateEmissions } from "../helpers/Emissions";
 import { hasCycle } from "../helpers/Graph";
 import { myEdge, myNode } from "../types/graphTypes";
+import { addNode, deleteNode, updateNodeData } from "../helpers/NodeControl";
+import NodeEditor from "./NodeEditPanel";
+import EdgeEditor from "./EdgeEditPanel";
 
 export default function Home() {
   const [nodes, setNodes] = useState<myNode[]>(nodesData);
@@ -26,11 +32,6 @@ export default function Home() {
   const [edgeWeight, setEdgeWeight] = useState<number>(0);
   const [needsRecalculation, setNeedsRecalculation] = useState(false);
 
-  //TODO: edges in the below function is not updated to the shown edges numbers
-  //?Done
-
-  //TODO: check why it doesn't loop on all edges
-
   useEffect(() => {
     if (needsRecalculation) {
       recalculateEmissions(nodes, edges, setNodes, setEdges);
@@ -38,73 +39,14 @@ export default function Home() {
     }
   }, [needsRecalculation]);
 
-  const addNode = () => {
-    const newNode = {
-      id: `${Date.now()}`,
-      position: { x: Math.random() * 500, y: Math.random() * 500 },
-      data: {
-        label: `New Node`,
-        weight: 1,
-        ownEmissions: 1,
-        totalEmissions: 1,
-        outgoingEdges: [],
-      },
-      type: "default",
-    };
-    console.log(nodes.length);
-    setNodes((nds) => [...nds, newNode]);
-  };
-
-  const deleteNode = () => {
-    if (selectedNodeIds.length === 0) return;
-
-    setNodes((nds) => {
-      const deletedNodeSet = new Set(selectedNodeIds);
-
-      return nds
-        .filter((n) => !deletedNodeSet.has(n.id))
-        .map((n) => ({
-          ...n,
-          data: {
-            ...n.data,
-            outgoingEdges: n.data.outgoingEdges?.filter(
-              (edge) => !deletedNodeSet.has(edge.target)
-            ),
-          },
-        }));
-    });
-
-    setEdges((eds) =>
-      eds.filter(
-        (e) =>
-          !selectedNodeIds.includes(e.source) &&
-          !selectedNodeIds.includes(e.target)
-      )
-    );
-    setSelectedNodeIds([]);
-    setNeedsRecalculation(true);
-  };
-
-  const updateNodeData = (field: string, value: string | number) => {
-    setNodes((nds) =>
-      nds.map((node) =>
-        selectedNodeIds.includes(node.id)
-          ? { ...node, data: { ...node.data, [field]: value } }
-          : node
-      )
-    );
-    setNeedsRecalculation(true);
-  };
-
-  const onNodesChange = useCallback((changes: any) => {
-    setNodes((nds) => applyNodeChanges(changes, nds));
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((nds) => applyNodeChanges(changes, nds) as myNode[]);
+  }, []);
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    setEdges((eds) => applyEdgeChanges(changes, eds) as myEdge[]);
   }, []);
 
-  const onEdgesChange = useCallback((changes: any) => {
-    setEdges((eds) => applyEdgeChanges(changes, eds));
-  }, []);
-
-  const onConnect = useCallback((connection: any) => {
+  const onConnect = useCallback((connection: Connection) => {
     setPendingEdgeData(connection);
     console.log("connection", connection);
   }, []);
@@ -117,7 +59,9 @@ export default function Home() {
       console.warn("Self-loops are not allowed.");
       return;
     }
-    if (hasCycle(pendingEdgeData.source, pendingEdgeData.target, nodes, edges)) {
+    if (
+      hasCycle(pendingEdgeData.source, pendingEdgeData.target, nodes, edges)
+    ) {
       console.warn("Cannot add edge: This would create a cycle!");
       return;
     }
@@ -246,14 +190,26 @@ export default function Home() {
 
   return (
     <div style={{ height: "95vh", position: "relative" }}>
-      <button onClick={deleteNode} disabled={!selectedNodeIds.length}>
+      <button
+        onClick={() => {
+          deleteNode(setNodes, setEdges, selectedNodeIds, setSelectedNodeIds);
+          setNeedsRecalculation(true);
+        }}
+        disabled={!selectedNodeIds.length}
+      >
         Delete Node
       </button>
       <button onClick={deleteEdge} disabled={!selectedEdgeIds.length}>
         Delete Edge
       </button>
       <br />
-      <button onClick={addNode} style={{ marginBottom: 10 }}>
+      <button
+        onClick={() => {
+          addNode(setNodes);
+          setNeedsRecalculation(true);
+        }}
+        style={{ marginBottom: 10 }}
+      >
         Add Node
       </button>
 
@@ -271,109 +227,24 @@ export default function Home() {
       </ReactFlow>
 
       {panelPosition && selectedNodeIds.length === 1 && (
-        <div
-          style={{
-            position: "absolute",
-            left: panelPosition.x,
-            top: panelPosition.y,
-            background: "white",
-            padding: "10px",
-            borderRadius: "5px",
-            boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
-            zIndex: 1000,
-          }}
-        >
-          <h4>Edit Node</h4>
-          <label>Name: </label>
-          <input
-            type="text"
-            placeholder="Enter node name"
-            value={
-              nodes.find((node) => node.id === selectedNodeIds[0])?.data
-                .label || ""
-            }
-            onChange={(e) => updateNodeData("label", e.target.value)}
-          />
-          <br />
-          <label>Weight: </label>
-          <input
-            type="number"
-            placeholder="Enter node weight"
-            value={
-              nodes.find((node) => node.id === selectedNodeIds[0])?.data
-                .weight || ""
-            }
-            onChange={(e) => updateNodeData("weight", Number(e.target.value))}
-          />
-          <br />
-          <label>Emissions: </label>
-          <input
-            type="number"
-            placeholder="Enter node emissions"
-            value={
-              nodes.find((node) => node.id === selectedNodeIds[0])?.data
-                .ownEmissions || ""
-            }
-            onChange={(e) =>
-              updateNodeData("ownEmissions", Number(e.target.value))
-            }
-          />
-          <br />
-          <label>Total Emissions: </label>
-          <input
-            disabled
-            type="number"
-            placeholder="..."
-            value={
-              nodes.find((node) => node.id === selectedNodeIds[0])?.data
-                .totalEmissions || ""
-            }
-            onChange={(e) =>
-              updateNodeData("ownEmissions", Number(e.target.value))
-            }
-          />
-          <br />
-          <button
-            onClick={() => {
-              setSelectedNodeIds([]);
-              setPanelPosition(null);
-            }}
-          >
-            Close
-          </button>
-        </div>
+        <NodeEditor
+          nodes={nodes}
+          setNodes={setNodes}
+          selectedNodeIds={selectedNodeIds}
+          setSelectedNodeIds={setSelectedNodeIds}
+          panelPosition={panelPosition}
+          setPanelPosition={setPanelPosition}
+        />
       )}
 
       {pendingEdgeData && (
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            background: "white",
-            padding: "15px",
-            borderRadius: "8px",
-            boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
-            zIndex: 2000,
-          }}
-        >
-          <h4>Set Edge Weight</h4>
-          <label>Weight: </label>
-          <input
-            type="number"
-            value={edgeWeight}
-            onChange={(e) => setEdgeWeight(Number(e.target.value))}
-          />
-          <br />
-          <button onClick={confirmEdge} style={{ marginRight: 5 }}>
-            Confirm
-          </button>
-          <button onClick={() => setPendingEdgeData(null)}>Cancel</button>
-        </div>
+        <EdgeEditor
+          edgeWeight={edgeWeight}
+          setEdgeWeight={setEdgeWeight}
+          confirmEdge={confirmEdge}
+          setPendingEdgeData={setPendingEdgeData}
+        />
       )}
     </div>
   );
 }
-
-//TODO: Better UI bellah

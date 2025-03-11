@@ -1,8 +1,8 @@
 import { myEdge, myNode } from "../types/graphTypes";
 
 export const hasCycle = (
-  source: myNode,
-  target: myNode,
+  source: string,
+  target: string,
   nodes: myNode[],
   edges: myEdge[]
 ) => {
@@ -12,7 +12,7 @@ export const hasCycle = (
   edges.forEach((edge: myEdge) => graph.get(edge.source).push(edge.target));
 
   const visited = new Set();
-  const dfs = (node: myNode) => {
+  const dfs = (node: string) => {
     if (node === source) return true;
     if (visited.has(node)) return false;
     visited.add(node);
