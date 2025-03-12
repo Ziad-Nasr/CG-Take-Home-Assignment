@@ -1,3 +1,4 @@
+import { toast } from "react-toastify";
 import { myEdge, myNode } from "../types/graphTypes";
 
 export const hasCycle = (
@@ -13,7 +14,10 @@ export const hasCycle = (
 
   const visited = new Set();
   const dfs = (node: string) => {
-    if (node === source) return true;
+    if (node === source) {
+      toast.error("Cycle detected!");
+      return true;
+    }
     if (visited.has(node)) return false;
     visited.add(node);
     return (graph.get(node) || []).some(dfs);

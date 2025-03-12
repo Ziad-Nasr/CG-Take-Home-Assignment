@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { myGraph } from "../../types/graphTypes";
 import "./Modal.css";
+import { toast } from "react-toastify";
 
 interface ModalProps {
   data?: myGraph[];
@@ -20,6 +21,8 @@ const Modal: React.FC<ModalProps> = ({
   const handleSave = () => {
     if (graphName.trim()) {
       onAction(graphName);
+    } else {
+      toast.error("Please enter a valid graph name.");
     }
   };
 
@@ -72,7 +75,7 @@ const Modal: React.FC<ModalProps> = ({
               <button
                 className="success-btn"
                 onClick={handleSave}
-                disabled={!graphName.trim()}
+                // disabled={!graphName.trim()}
               >
                 Save
               </button>

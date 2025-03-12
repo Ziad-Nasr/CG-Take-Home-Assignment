@@ -24,6 +24,7 @@ import NodeEditor from "../NodeEditPanel";
 import EdgeEditor from "../EdgeEditPanel";
 import useAxios from "../../hooks/useAxios";
 import Modal from "../Modal/Modal";
+import { toast } from "react-toastify";
 
 export default function Home() {
   const [graphMeta, setGraphMeta] = useState({
@@ -95,13 +96,12 @@ export default function Home() {
     console.log("pendingEdgeData", pendingEdgeData);
 
     if (pendingEdgeData.source === pendingEdgeData.target) {
-      console.warn("Self-loops are not allowed.");
+      toast.error("Self loops are not allowed!");
       return;
     }
     if (
       hasCycle(pendingEdgeData.source, pendingEdgeData.target, nodes, edges)
     ) {
-      console.warn("Cannot add edge: This would create a cycle!");
       return;
     }
     const sourceIndex = nodes.findIndex((n) => n.id === pendingEdgeData.source);
@@ -114,7 +114,7 @@ export default function Home() {
       .reduce((sum, edge) => sum + edge.weight, 0);
 
     if (totalExistingWeight + edgeWeight > sourceNode.data.weight) {
-      console.log(
+      toast.error(
         "Cannot add edge, Total outgoing weight exceeds node weight!"
       );
       return;
@@ -307,6 +307,18 @@ export default function Home() {
           }}
         >
           Add Node
+        </Button>
+
+        <Button
+          variant="contained"
+          color="warning"
+          startIcon={<Add />}
+          onClick={() => {
+            setNodes([]);
+            setEdges([]);
+          }}
+        >
+          New Graph
         </Button>
       </div>
 

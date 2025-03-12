@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../api/api";
 import { myGraph, myNode } from "../types/graphTypes";
+import { toast } from "react-toastify";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -22,6 +23,7 @@ const useAxios = <T>(
   ) => {
     setLoading(true);
     try {
+      console.log(data);
       if (url === "") return;
       if (
         (method === "POST" && data == null) ||
