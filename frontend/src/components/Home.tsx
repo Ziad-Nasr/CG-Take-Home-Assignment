@@ -14,12 +14,15 @@ import { nodesData } from "../data/nodesData";
 import { edgesData } from "../data/edgesData";
 import { recalculateEmissions } from "../helpers/Emissions";
 import { hasCycle } from "../helpers/Graph";
-import { myEdge, myNode } from "../types/graphTypes";
+import { myEdge, myGraph, myNode } from "../types/graphTypes";
 import { addNode, deleteNode, updateNodeData } from "../helpers/NodeControl";
 import NodeEditor from "./NodeEditPanel";
 import EdgeEditor from "./EdgeEditPanel";
+import useAxios from "../hooks/useAxios";
+import Modal from "./Modal/Modal";
 
 export default function Home() {
+  const [graphName, setGraphName] = useState<string>("");
   const [nodes, setNodes] = useState<myNode[]>(nodesData);
   const [edges, setEdges] = useState<myEdge[]>(edgesData);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -31,6 +34,7 @@ export default function Home() {
   const [pendingEdgeData, setPendingEdgeData] = useState<any | null>(null);
   const [edgeWeight, setEdgeWeight] = useState<number>(0);
   const [needsRecalculation, setNeedsRecalculation] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (needsRecalculation) {
@@ -38,6 +42,18 @@ export default function Home() {
       setNeedsRecalculation(false);
     }
   }, [needsRecalculation]);
+
+  // const { data } = useAxios("/load-graph?name=Sample Graph");
+  const { data: allData } = useAxios<myGraph[]>("/list-all-graphs");
+  const { data: graphData } = useAxios<myGraph>(
+    `/load-graph?name=${graphName}`
+  );
+  useEffect(() => {
+    if (graphData?.name === "") return;
+
+    setNodes(graphData?.nodes || []);
+    setEdges(graphData?.edges || []);
+  }, [graphData]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((nds) => applyNodeChanges(changes, nds) as myNode[]);
@@ -129,7 +145,6 @@ export default function Home() {
     const edgeIdToDelete = selectedEdgeIds[0].id;
 
     const edgeToDelete = edges.find((e) => {
-      console.log(e, edgeIdToDelete, "Yarrab");
       return e.id === edgeIdToDelete;
     });
 
@@ -192,6 +207,13 @@ export default function Home() {
     <div style={{ height: "95vh", position: "relative" }}>
       <button
         onClick={() => {
+          setShowModal(true);
+        }}
+      >
+        Graphs Menu
+      </button>
+      <button
+        onClick={() => {
           deleteNode(setNodes, setEdges, selectedNodeIds, setSelectedNodeIds);
           setNeedsRecalculation(true);
         }}
@@ -243,6 +265,19 @@ export default function Home() {
           setEdgeWeight={setEdgeWeight}
           confirmEdge={confirmEdge}
           setPendingEdgeData={setPendingEdgeData}
+        />
+      )}
+
+      {showModal && (
+        <Modal
+          data={allData || []}
+          onClose={() => setShowModal(false)}
+          title="Graphs"
+          onLoadGraph={(graph) => {
+            console.log("graph", graph);
+            setGraphName(graph);
+            setShowModal(false);
+          }}
         />
       )}
     </div>

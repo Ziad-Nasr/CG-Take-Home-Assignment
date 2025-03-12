@@ -28,3 +28,11 @@ export interface myEdge {
   label?: string;
   animated: boolean;
 }
+
+export interface myGraph {
+  nodes: myNode[];
+  edges: myEdge[];
+  createdAt: string;
+  updatedAt: string;
+  name: string;
+}
