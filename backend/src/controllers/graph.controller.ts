@@ -55,9 +55,9 @@ export const listAllGraphs = async (req: Request, res: Response) => {
 
 export const updateGraphConfiguration = async (req: Request, res: Response) => {
   try {
-    const { name } = req.params;
+    const { name } = req.query;
     const { nodes, edges } = req.body;
-
+    console.log("name", name);
     const updatedGraph = await GraphConfigModel.findOneAndUpdate(
       { name },
       { nodes, edges, updateAt: new Date() },
