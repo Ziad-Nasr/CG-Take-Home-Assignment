@@ -12,6 +12,7 @@ interface NodeEditorProps {
   setPanelPosition: Dispatch<
     React.SetStateAction<{ x: number; y: number } | null>
   >;
+  onClosed: () => void;
 }
 
 const NodeEditor: React.FC<NodeEditorProps> = ({
@@ -21,6 +22,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
   setSelectedNodeIds,
   panelPosition,
   setPanelPosition,
+  onClosed,
 }) => {
   const selectedNode = nodes.find((node) => node.id === selectedNodeIds[0]);
 
@@ -92,6 +94,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
         onClick={() => {
           setSelectedNodeIds([]);
           setPanelPosition(null);
+          onClosed();
         }}
       >
         Close

@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import api from "../api/api";
 import { myGraph, myNode } from "../types/graphTypes";
+
+type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+
 const useAxios = <T>(
+  method: HttpMethod,
   url: string,
   options: object = {},
   immediate: boolean = true
@@ -10,11 +14,21 @@ const useAxios = <T>(
   const [loading, setLoading] = useState<boolean>(immediate);
   const [error, setError] = useState<unknown>(null);
 
-  const fetchData = async () => {
+  const request = async (
+    method: HttpMethod,
+    url: string,
+    data: myGraph | null = null,
+    options = {}
+  ) => {
     setLoading(true);
     try {
-      const response = await api.get(url, options);
-      console.log(response);
+      if (url === "") return;
+      if (
+        (method === "POST" && data == null) ||
+        (method === "PUT" && data == null)
+      )
+        return;
+      const response = await api({ method, url, data, ...options });
       setData(response.data);
       setError(null);
     } catch (err) {
@@ -25,10 +39,15 @@ const useAxios = <T>(
   };
 
   useEffect(() => {
-    if (immediate) fetchData();
+    if (immediate) request(method, url);
   }, [url]);
 
-  return { data, loading, error, refetch: fetchData };
+  return {
+    data,
+    loading,
+    error,
+    request: (data: myGraph | null = null) => request(method, url, data),
+  };
 };
 
 export default useAxios;

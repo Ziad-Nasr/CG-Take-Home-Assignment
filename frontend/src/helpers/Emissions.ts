@@ -20,6 +20,7 @@ export const recalculateEmissions = (
       },
     ])
   );
+  console.log("nodes", nodeMap);
   const edgeMap = new Map(
     edges.map((edge: myEdge) => [
       edge.id,
@@ -33,17 +34,19 @@ export const recalculateEmissions = (
   );
 
   const queue = [...initialNodes.map((node: myNode) => node.id)];
-  console.log(queue);
+
   while (queue.length > 0) {
     const currentNodeId = queue.shift();
     const currentNode = nodeMap.get(currentNodeId || "");
+
     if (!currentNode || !currentNode.data.outgoingEdges) continue;
-    console.log("currentNode", currentNode);
+    if (currentNode.data.totalEmissions == 0) {
+      currentNode.data.totalEmissions = currentNode.data.ownEmissions;
+    }
+
     currentNode.data.outgoingEdges.forEach(({ target, weight, edgeId }) => {
       const targetNode = nodeMap.get(target);
-      console.log(edgeId);
       const edge = edgeMap.get(edgeId);
-      console.log("edgeeee", edge);
 
       if (!targetNode || !edge) return;
 
@@ -58,7 +61,9 @@ export const recalculateEmissions = (
 
       console.log(
         "targetNode.data.totalEmissions",
-        targetNode.data.totalEmissions
+        edgeId,
+        targetNode.data.totalEmissions,
+        edgeEmissions
       );
       if (targetNode.data.totalEmissions) {
         targetNode.data.totalEmissions += edgeEmissions;
